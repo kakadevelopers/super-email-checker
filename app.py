@@ -1,28 +1,28 @@
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 import dns.resolver
-import re
 
 app = FastAPI()
 
-def is_valid_email(email: str):
-    # 1. Syntax check
-    regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(regex, email):
-        return False, "❌ Invalid email format"
-
-    # 2. Domain + MX Record check - REAL VALIDATION
-    domain = email.split('@')[1]
-    try:
-        dns.resolver.resolve(domain, 'MX')
-        return True, "✅ Valid & Deliverable"
-    except:
-        return False, "❌ Domain doesn't accept emails"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def home():
-    return {"name": "Super Email Checker Pro", "status": "Live"}
+    return {"message": "Email Checker API is live!"}
 
 @app.get("/check")
-def check_email(email: str):
-    valid, reason = is_valid_email(email)
-    return {"email": email, "valid": valid, "reason": reason}
+def check_email(email: str = Query(...)):
+    try:
+        domain = email.split("@")[1]
+        answers = dns.resolver.resolve(domain, "MX")
+        if answers:
+            return {"email": email, "valid": True, "reason": "✅ Valid & Deliverable"}
+    except:
+        return {"email": email, "valid": False, "reason": "❌ Domain doesn't accept emails"}
