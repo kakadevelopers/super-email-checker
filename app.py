@@ -1,48 +1,28 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import re
 import dns.resolver
+import re
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def is_valid_email(email: str):
+    # 1. Syntax check
+    regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(regex, email):
+        return False, "❌ Invalid email format"
 
-SCAM_DOMAINS = {
-    'paypaal.com': 'paypal.com',
-    'hblbannk.com': 'hbl.com',
-    'habibbannk.com': 'habibbank.com',
-}
-
-DISPOSABLE = ['mailinator.com', '10minutemail.com', 'tempmail.com', 'yopmail.com']
-
-@app.get("/check")
-def check_email(email: str):
-    if '@' not in email:
-        return {"email": email, "valid": False, "reason": "Invalid email format"}
-    
+    # 2. Domain + MX Record check - REAL VALIDATION
     domain = email.split('@')[1]
-    
-    if domain in SCAM_DOMAINS:
-        return {"email": email, "valid": False, "reason": f"⚠️ SCAM! Ye fake hai. Asli: {SCAM_DOMAINS[domain]}"}
-    
-    if domain in DISPOSABLE:
-        return {"email": email, "valid": False, "reason": "❌ Temporary email, account mat banao"}
-    
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(pattern, email):
-        return {"email": email, "valid": False, "reason": "Format galat hai"}
-    
     try:
         dns.resolver.resolve(domain, 'MX')
-        return {"email": email, "valid": True, "reason": "✅ Email valid hai"}
+        return True, "✅ Valid & Deliverable"
     except:
-        return {"email": email, "valid": False, "reason": "Domain exist nahi karta"}
+        return False, "❌ Domain doesn't accept emails"
 
 @app.get("/")
 def home():
-    return {"name": "Email Validator", "status": "live"}
+    return {"name": "Super Email Checker Pro", "status": "Live"}
+
+@app.get("/check")
+def check_email(email: str):
+    valid, reason = is_valid_email(email)
+    return {"email": email, "valid": valid, "reason": reason}
